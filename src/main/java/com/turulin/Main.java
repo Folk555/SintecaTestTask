@@ -1,9 +1,6 @@
 package com.turulin;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -15,7 +12,7 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         System.out.println("Hello world!");
-        findSimilar("input.txt");
+        findSimilar(pathToInputFile);
     }
 
     public static String findSimilar(String inputFileName) throws Exception {
@@ -23,7 +20,7 @@ public class Main {
         //возможно надо указать ресурсную папку
         var firstItemList = new ArrayList<String>();
         var secondItemList = new ArrayList<String>();
-        try (var bufferedReader = new BufferedReader(new FileReader(pathToInputFile))) {
+        try (var bufferedReader = new BufferedReader(new FileReader(inputFileName))) {
             var sizeFirstItemList = Integer.parseInt(bufferedReader.readLine());
             for (int i = 0; i < sizeFirstItemList; ++i) {
                 firstItemList.add(bufferedReader.readLine());
@@ -34,14 +31,31 @@ public class Main {
             }
         }
 
-        var mapFirstSecondItemListMatching = getIndexMapOfSimple(firstItemList, secondItemList);
+        var mapMatchIndexesLists = getIndexMapOfSimple(firstItemList, secondItemList);
 
-        return saveMapToFile(new HashMap<>()).toString();
+        //Тут хватило бы одной HashMap, но тогда будет нарушен порядок следования записей из примеров по условию задачи
+        ArrayList<Map<String, String>> stringItemMatch = new ArrayList<>();
+        HashSet<Integer> unusedIndexFromSecondList = new HashSet<>();
+        for (int i = 0; i < secondItemList.size(); i++)
+            unusedIndexFromSecondList.add(i);
+
+        for (int i = 0; i < firstItemList.size(); i++) {
+            String key = firstItemList.get(i);
+            String value = mapMatchIndexesLists.containsKey(i) ? secondItemList.get(mapMatchIndexesLists.get(i)) : "?";
+            stringItemMatch.add(Map.of(key, value));
+            unusedIndexFromSecondList.remove(mapMatchIndexesLists.get(i));
+        }
+
+        if (!(unusedIndexFromSecondList.isEmpty()))
+            unusedIndexFromSecondList.forEach(x -> stringItemMatch.add(Map.of("?", secondItemList.get(x))));
+
+        System.out.println(stringItemMatch);
+
+        return saveMapToFile(stringItemMatch);
     }
 
-    public static Map<String, String> getIndexMapOfSimple(List<String> firstItemList, List<String> secondItemList) {
+    private static Map<Integer, Integer> getIndexMapOfSimple(List<String> firstItemList, List<String> secondItemList) {
         HashMap<Integer, Integer> indexMatchMap = new HashMap<>();
-
         ArrayList<SimilarityElement> allSimilarity = new ArrayList<>();
         for (int indexFirstList = 0; indexFirstList < firstItemList.size(); indexFirstList++) {
             for (int indexSecondList = 0; indexSecondList < secondItemList.size(); indexSecondList++) {
@@ -50,9 +64,8 @@ public class Main {
                 allSimilarity.add(new SimilarityElement(indexFirstList, indexSecondList, similarity));
             }
         }
-
         allSimilarity.sort(Comparator.comparing(SimilarityElement::getSimilarity));
-        //allSimilarity.forEach(System.out::println); //debug
+        allSimilarity.forEach(System.out::println); //debug
 
         //Логично что если один список больше, а второй меньше то будет один свободный элемент
         //поэтому искать нужно столько пар сколько элементов в меньшем списке.
@@ -73,14 +86,11 @@ public class Main {
                 if (!(setNotMatchedElements.contains(similarityElement.y))) continue;
                 setNotMatchedElements.remove(similarityElement.y);
             }
-
             indexMatchMap.put(similarityElement.x, similarityElement.y);
         }
+        System.out.println(indexMatchMap); //debug
 
-        //System.out.println(indexMatchMap); //debug
-
-
-        return new HashMap<String, String>();
+        return indexMatchMap;
     }
 
     private static class SimilarityElement {
@@ -104,19 +114,28 @@ public class Main {
         }
     }
 
-    public static Path saveMapToFile(Map<String, String> results) throws Exception {
+    private static String saveMapToFile(List<Map<String, String>> results) throws Exception {
         Path pathToResultFile = Path.of(pathToOutputFile);
         if (Files.notExists(pathToResultFile))
             Files.createFile(pathToResultFile);
 
         try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(pathToResultFile.toString()))) {
-            for (Map.Entry<String, String> entry : results.entrySet()) {
-                bufferedWriter.write(entry.toString());
-                bufferedWriter.write("\n");
+            for (Map record : results) {
+                record.forEach((key, value) -> {
+                    try {
+                        bufferedWriter.write(key.toString());
+                        bufferedWriter.write(":");
+                        bufferedWriter.write(value.toString());
+                        bufferedWriter.write("\n");
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+
             }
         }
 
-        return pathToResultFile;
+        return pathToResultFile.toString();
     }
 
     //Алгоритм Левенштейна
