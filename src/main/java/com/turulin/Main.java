@@ -34,28 +34,51 @@ public class Main {
             }
         }
 
-        var mapFirstSecondItemListMatching = getMapOfSimple(firstItemList, secondItemList);
+        var mapFirstSecondItemListMatching = getIndexMapOfSimple(firstItemList, secondItemList);
 
         return saveMapToFile(new HashMap<>()).toString();
     }
 
-    public static Map<String, String> getMapOfSimple(List<String> firstItemList, List<String> secondItemList) {
-        //Содержимое элемента List это индекс элемента secondItemList, который больше всего подходит к текущему
-        // элементу из firstItemList
-        ArrayList allSimilarity = new ArrayList<SimilarityElement>();
-        //Декартово произведение всех комбинаций из первого и второго списка + степень их похожести
-        var cartesianProduct = new double[firstItemList.size()][secondItemList.size()];
+    public static Map<String, String> getIndexMapOfSimple(List<String> firstItemList, List<String> secondItemList) {
+        HashMap<Integer, Integer> indexMatchMap = new HashMap<>();
+
+        ArrayList<SimilarityElement> allSimilarity = new ArrayList<>();
         for (int indexFirstList = 0; indexFirstList < firstItemList.size(); indexFirstList++) {
             for (int indexSecondList = 0; indexSecondList < secondItemList.size(); indexSecondList++) {
                 double similarity =
                         Levenshtein.calculate(firstItemList.get(indexFirstList), secondItemList.get(indexSecondList));
-                cartesianProduct[indexFirstList][indexSecondList] = similarity;
                 allSimilarity.add(new SimilarityElement(indexFirstList, indexSecondList, similarity));
             }
         }
 
         allSimilarity.sort(Comparator.comparing(SimilarityElement::getSimilarity));
-        allSimilarity.forEach(System.out::println);
+        //allSimilarity.forEach(System.out::println); //debug
+
+        //Логично что если один список больше, а второй меньше то будет один свободный элемент
+        //поэтому искать нужно столько пар сколько элементов в меньшем списке.
+        //setNotMatchedElements отслеживает те элементы меньшего списка для которых пары еще нет.
+        Set<Integer> setNotMatchedElements = new HashSet<>();
+        boolean isFirstListSmaller;
+        if (firstItemList.size() < secondItemList.size())
+            isFirstListSmaller = true;
+        else isFirstListSmaller = false;
+        for (int i = 0; i < Math.min(firstItemList.size(), secondItemList.size()); ++i)
+            setNotMatchedElements.add(i);
+        for (int i = allSimilarity.size() - 1; i >= 0; --i) {
+            SimilarityElement similarityElement = allSimilarity.get(i);
+            if (isFirstListSmaller) {
+                if (!(setNotMatchedElements.contains(similarityElement.x))) continue;
+                setNotMatchedElements.remove(similarityElement.x);
+            } else {
+                if (!(setNotMatchedElements.contains(similarityElement.y))) continue;
+                setNotMatchedElements.remove(similarityElement.y);
+            }
+
+            indexMatchMap.put(similarityElement.x, similarityElement.y);
+        }
+
+        //System.out.println(indexMatchMap); //debug
+
 
         return new HashMap<String, String>();
     }
@@ -77,7 +100,7 @@ public class Main {
 
         @Override
         public String toString() {
-            return "x: "+x+"  y: "+y+"  similarity: "+similarity;
+            return "x: " + x + "  y: " + y + "  similarity: " + similarity;
         }
     }
 
