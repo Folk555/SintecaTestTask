@@ -21,6 +21,10 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-params:' + junitJupiterVersion
     testImplementation 'org.junit.jupiter:junit-jupiter-engine:' + junitJupiterVersion
 
+    //Тут есть алгоритм Левенштейна, но по заданию предполагается написать его самостоятельно.
+    //implementation 'org.apache.commons:commons-text:1.10.0'
+
+
 }
 
 test {
